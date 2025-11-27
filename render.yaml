@@ -1,0 +1,33 @@
+# Render deployment configuration
+# https://render.com/docs/infrastructure-as-code
+
+services:
+  # FastAPI Web Service
+  - type: web
+    name: thermal-anomaly-api
+    env: docker
+    region: oregon  # Choose your preferred region
+    plan: free  # or 'starter' for paid tier
+    branch: main  # Git branch to deploy
+    
+    # Docker build settings
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    
+    # Health check endpoint
+    healthCheckPath: /health
+    
+    # Environment variables
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: PORT
+        generateValue: true  # Render auto-assigns port
+    
+    # Auto-deploy on git push
+    autoDeploy: true
+    
+    # Scaling (free tier: 1 instance, 512MB RAM)
+    # For paid plans, you can configure:
+    # numInstances: 2
+    # maxMemoryGB: 2

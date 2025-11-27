@@ -1,0 +1,8 @@
+opencv-python>=4.8.0
+opencv-contrib-python>=4.8.0
+numpy>=1.21.0
+scikit-learn>=1.3.0
+matplotlib>=3.5.0
+albumentations
+psycopg2-binary
+tqdm

@@ -1,0 +1,54 @@
+======================================================================
+UNIFIED THERMAL TRANSFORMER ANALYSIS REPORT
+======================================================================
+
+Image: Dataset/T1/faulty/T1_faulty_001.jpg
+
+ML-BASED ANOMALY DETECTION
+----------------------------------------------------------------------
+Status: SUCCESS
+Reconstruction Error: 1.908225
+Threshold: 0.5
+Detected Anomalies: 3
+
+Anomalies:
+  ML-1:
+    Location: (198, 276)
+    Size: 38x56
+    Score: 79.32%
+
+  ML-2:
+    Location: (310, 368)
+    Size: 20x20
+    Score: 71.00%
+
+  ML-3:
+    Location: (430, 246)
+    Size: 22x24
+    Score: 69.70%
+
+
+THERMAL HOTPOINT DETECTION
+----------------------------------------------------------------------
+Status: SUCCESS
+Temperature Threshold: 200
+Detected Hotspots: 3
+
+Hotspots:
+  TH-1:
+    Location: (288, 0)
+    Size: 233x176
+    Confidence: 1.00
+
+  TH-2:
+    Location: (0, 139)
+    Size: 441x382
+    Confidence: 1.00
+
+  TH-3:
+    Location: (368, 179)
+    Size: 28x33
+    Confidence: 1.00
+
+
+======================================================================
