@@ -31,6 +31,17 @@ Thumbs.db
 
 # Logs
 *.log
+output.log
 
 # Environment variables
 .env
+
+# Temporary files and results
+*_annotated.png
+*_annotated.jpg
+*_analysis.json
+annotated_results/
+thermal_annotations/
+
+# Finetune data (large datasets)
+Finetune_data/

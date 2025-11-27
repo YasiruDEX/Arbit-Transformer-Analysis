@@ -147,6 +147,19 @@ def load_config():
             logger.warning(f"Failed to load config.yaml: {e}")
 
 
+def clip_bbox_to_image(x, y, w, h, img_width, img_height):
+    """Clip bounding box coordinates to ensure they stay within image boundaries."""
+    x = max(0, x)
+    y = max(0, y)
+    if x + w > img_width:
+        w = img_width - x
+    if y + h > img_height:
+        h = img_height - y
+    w = max(1, w)
+    h = max(1, h)
+    return x, y, w, h
+
+
 def classify_severity(score: float) -> str:
     """Classify anomaly severity based on score"""
     if score >= 0.8:
@@ -269,6 +282,7 @@ def analyze_thermal_image(
         
         # Create combined annotated image
         annotated_image = image.copy()
+        img_height, img_width = image.shape[:2]
         anomaly_id = 0
         
         # Draw ML boxes (RED)
@@ -277,6 +291,8 @@ def analyze_thermal_image(
                 anomaly_id += 1
                 # Box has 'bbox' field which is a tuple (x, y, w, h)
                 x, y, w, h = box['bbox']
+                # Clip to image boundaries
+                x, y, w, h = clip_bbox_to_image(x, y, w, h, img_width, img_height)
                 score = box.get('score', 0.0)
                 
                 # Draw red rectangle
@@ -284,7 +300,7 @@ def analyze_thermal_image(
                 
                 # Add label
                 label = f"ML-{anomaly_id}: {score:.1f}%"
-                cv2.putText(annotated_image, label, (x, y - 5),
+                cv2.putText(annotated_image, label, (x, max(y - 5, 15)),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         
         # Draw Thermal boxes (YELLOW)
@@ -297,13 +313,15 @@ def analyze_thermal_image(
                 y = bbox.y + crop_info['top']
                 w = bbox.width
                 h = bbox.height
+                # Clip to image boundaries
+                x, y, w, h = clip_bbox_to_image(x, y, w, h, img_width, img_height)
                 
                 # Draw yellow rectangle
                 cv2.rectangle(annotated_image, (x, y), (x + w, y + h), (0, 255, 255), 3)
                 
                 # Add label
                 label = f"TH-{anomaly_id}"
-                cv2.putText(annotated_image, label, (x, y - 5),
+                cv2.putText(annotated_image, label, (x, max(y - 5, 15)),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         
         results["annotated_image"] = annotated_image

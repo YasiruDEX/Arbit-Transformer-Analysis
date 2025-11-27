@@ -129,6 +129,35 @@ def calculate_blue_percentage(image_bgr, x, y, w, h):
     return blue_percentage
 
 
+def clip_bbox_to_image(x, y, w, h, img_width, img_height):
+    """
+    Clip bounding box coordinates to ensure they stay within image boundaries.
+    
+    Args:
+        x, y: Top-left corner coordinates
+        w, h: Width and height of bounding box
+        img_width, img_height: Image dimensions
+    
+    Returns:
+        Clipped (x, y, w, h) tuple
+    """
+    # Ensure x, y are not negative
+    x = max(0, x)
+    y = max(0, y)
+    
+    # Ensure box doesn't exceed image boundaries
+    if x + w > img_width:
+        w = img_width - x
+    if y + h > img_height:
+        h = img_height - y
+    
+    # Ensure w, h are positive
+    w = max(1, w)
+    h = max(1, h)
+    
+    return x, y, w, h
+
+
 def find_contours_and_draw_boxes(image, mask, original_size, crop_coords, min_area=100, max_area=None, max_annotations=3, blue_threshold=None):
     """
     Find contours in mask and draw bounding boxes with labels
@@ -150,6 +179,7 @@ def find_contours_and_draw_boxes(image, mask, original_size, crop_coords, min_ar
     y1, y2, x1, x2 = crop_coords
     cropped_h = y2 - y1
     cropped_w = x2 - x1
+    img_height, img_width = original_size
     
     # Resize mask to cropped image size
     mask_resized = cv2.resize(mask, (cropped_w, cropped_h), interpolation=cv2.INTER_NEAREST)
@@ -180,6 +210,13 @@ def find_contours_and_draw_boxes(image, mask, original_size, crop_coords, min_ar
         x_orig = x_crop + x1
         y_orig = y_crop + y1
         
+        # Clip bounding box to image boundaries
+        x_orig, y_orig, w, h = clip_bbox_to_image(x_orig, y_orig, w, h, img_width, img_height)
+        
+        # Skip if box became too small after clipping
+        if w < 5 or h < 5:
+            continue
+        
         # Calculate anomaly score (percentage of pixels in bounding box that are anomalous)
         roi_mask = mask_resized[y_crop:y_crop+h, x_crop:x_crop+w]
         anomaly_percentage = (np.sum(roi_mask > 0) / (w * h)) * 100
@@ -194,7 +231,7 @@ def find_contours_and_draw_boxes(image, mask, original_size, crop_coords, min_ar
             blue_pct = 0.0
         
         valid_boxes.append({
-            'bbox': (x_orig, y_orig, w, h),  # Store in original coordinates
+            'bbox': (x_orig, y_orig, w, h),  # Store in original coordinates (clipped)
             'area': area,
             'score': anomaly_percentage,
             'contour': contour,

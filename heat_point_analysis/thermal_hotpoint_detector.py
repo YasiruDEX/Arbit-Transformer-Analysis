@@ -294,10 +294,39 @@ class ThermalHotpointDetector:
         
         return filtered_boxes
     
+    def clip_bbox_to_image(self, x, y, width, height, img_height, img_width):
+        """
+        Clip bounding box coordinates to ensure they stay within image boundaries.
+        
+        Args:
+            x, y: Top-left corner coordinates
+            width, height: Width and height of bounding box
+            img_height, img_width: Image dimensions
+        
+        Returns:
+            Clipped (x, y, width, height) tuple
+        """
+        # Ensure x, y are not negative
+        x = max(0, x)
+        y = max(0, y)
+        
+        # Ensure box doesn't exceed image boundaries
+        if x + width > img_width:
+            width = img_width - x
+        if y + height > img_height:
+            height = img_height - y
+        
+        # Ensure width, height are positive
+        width = max(1, width)
+        height = max(1, height)
+        
+        return x, y, width, height
+    
     def create_bounding_boxes(self, clusters, image_shape):
         """
         Create bounding boxes around clustered hot regions.
         Filters out boxes larger than 80% of image area.
+        Clips boxes to ensure they stay within image boundaries.
         
         Args:
             clusters (list): List of clustered point groups
@@ -307,6 +336,7 @@ class ThermalHotpointDetector:
             list: List of BoundingBox objects
         """
         bounding_boxes = []
+        img_height, img_width = image_shape[:2]
         
         for i, cluster in enumerate(clusters):
             if len(cluster) < self.min_cluster_size:
@@ -323,6 +353,16 @@ class ThermalHotpointDetector:
             
             width = max_col - min_col + 2 * padding
             height = max_row - min_row + 2 * padding
+            
+            # Clip bounding box to image boundaries
+            min_col, min_row, width, height = self.clip_bbox_to_image(
+                int(min_col), int(min_row), int(width), int(height), 
+                img_height, img_width
+            )
+            
+            # Skip if box became too small after clipping
+            if width < 5 or height < 5:
+                continue
             
             # Calculate confidence based on cluster density
             area = width * height
