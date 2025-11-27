@@ -198,7 +198,8 @@ def analyze_thermal_image(
     results = {
         "ml_results": None,
         "thermal_results": None,
-        "annotated_image": None
+        "annotated_image": None,
+        "image_dimensions": None
     }
     
     try:
@@ -206,6 +207,10 @@ def analyze_thermal_image(
         image = cv2.imread(image_path)
         if image is None:
             raise ValueError("Failed to load image")
+        
+        # Store image dimensions for bounding box clipping
+        img_height, img_width = image.shape[:2]
+        results["image_dimensions"] = {"width": img_width, "height": img_height}
         
         # ML Analysis
         if ML_MODEL is not None:
@@ -344,6 +349,11 @@ def format_json_response(
     total_anomaly_area = 0
     detection_methods = set()
     
+    # Get image dimensions for clipping
+    img_dims = analysis_results.get("image_dimensions", {"width": 640, "height": 480})
+    img_width = img_dims["width"]
+    img_height = img_dims["height"]
+    
     # Add ML anomalies (statistical detection)
     if analysis_results["ml_results"] and analysis_results["ml_results"]["boxes"]:
         detection_methods.add("statistical")
@@ -352,6 +362,8 @@ def format_json_response(
             anomaly_id += 1
             # Box has 'bbox' field which is a tuple (x, y, w, h)
             x, y, w, h = box['bbox']
+            # Clip bounding box to image boundaries
+            x, y, w, h = clip_bbox_to_image(x, y, w, h, img_width, img_height)
             score = box.get('score', 0.0) / 100.0  # Convert from percentage to 0-1 range
             area = int(w * h)
             total_anomaly_area += area
@@ -398,6 +410,8 @@ def format_json_response(
             y = bbox.y + crop_info['top']
             w = bbox.width
             h = bbox.height
+            # Clip bounding box to image boundaries
+            x, y, w, h = clip_bbox_to_image(x, y, w, h, img_width, img_height)
             area = int(w * h)
             total_anomaly_area += area
             
@@ -426,36 +440,8 @@ def format_json_response(
                 "severity_color": get_severity_color(severity_level)
             })
     
-    # Add structural change detection (whole image analysis)
-    if anomalies:  # Only add if we detected anomalies
-        detection_methods.add("computer_vision")
-        
-        # Calculate overall structural change metrics
-        image_width = 640  # Typical thermal image width
-        image_height = 480  # Typical thermal image height
-        border = 20
-        
-        structural_area = (image_width - 2*border) * (image_height - 2*border)
-        total_anomaly_area += structural_area
-        
-        anomalies.append({
-            "id": 1,  # Structural change always gets ID 1 at the end
-            "bbox": [border, border, image_width - 2*border, image_height - 2*border],
-            "center": [image_width // 2, image_height // 2],
-            "area": structural_area,
-            "intensity_change": -4.88,  # Simulated intensity change
-            "contrast_change": 27.60,   # Simulated contrast increase
-            "eccentricity": 0.61,        # Shape metric
-            "solidity": 0.81,            # Shape metric
-            "severity": 1.0,
-            "type": "structural_change",
-            "confidence": 1.0,
-            "reasoning": "Increased contrast indicating edge enhancement. Large structural change affecting significant area. " +
-                        "Primarily edge-based change suggesting structural modification.",
-            "consensus_score": 0.5,
-            "severity_level": "HIGH",
-            "severity_color": get_severity_color("HIGH")
-        })
+    # Note: Removed hardcoded structural_change detection that used fixed 640x480 dimensions
+    # All bounding boxes are now properly clipped to actual image dimensions
     
     # Calculate severity distribution with all levels
     severity_dist = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "MINIMAL": 0}
