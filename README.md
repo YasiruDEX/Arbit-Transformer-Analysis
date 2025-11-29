@@ -28,12 +28,12 @@
 
 ## Team Arbitary
 
-| Name | Role |
-|------|------|
-| **Yasiru Basnayake** | Full Stack Developer |
-| **Kumal Loneth** | Backend Developer |
-| **Dasuni Dissanayake** | Frontend Developer |
-| **Hasitha Gallella** | ML/AI Engineer |
+| Name |
+|------|
+| **Yasiru Basnayake** |
+| **Kumal Loneth** |
+| **Dasuni Dissanayake** |
+| **Hasitha Gallella** |
 
 ---
 
