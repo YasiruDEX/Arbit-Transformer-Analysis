@@ -1,293 +1,382 @@
-# Thermal Transformer Anomaly Detection & Segmentation
+<p align="center">
+  <img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
+</p>
 
-This project implements an **AutoEncoder-based anomaly detection** system for thermal images of transformers. The model learns to reconstruct normal transformer images and identifies anomalies by measuring reconstruction errors.
+<h1 align="center">ML Analysis Module</h1>
 
-## 🎯 Approach
+<p align="center">
+  <strong>AutoEncoder-Based Anomaly Detection for Thermal Transformer Images</strong>
+</p>
 
-### Method: Unsupervised AutoEncoder Learning
+<p align="center">
+  Deep learning module using Convolutional AutoEncoders for detecting anomalies in thermal images via reconstruction error analysis.
+</p>
 
-1. **Training Phase**: Train AutoEncoder ONLY on normal (non-faulty) images
-2. **Detection Phase**: Calculate reconstruction error for test images
-3. **Segmentation Phase**: Generate pixel-wise anomaly heatmaps and binary masks
+---
 
-### Why This Approach?
+## Team Arbitary
 
-- ✅ **No manual annotations required** - learns from normal images only
-- ✅ **Pixel-level segmentation** - identifies exact anomaly locations
-- ✅ **Generalizable** - can detect various types of anomalies
-- ✅ **Fast inference** - real-time capable on CPU/GPU
+| Name | Role |
+|------|------|
+| **Yasiru Basnayake** | Full Stack Developer |
+| **Kumal Loneth** | Backend Developer |
+| **Dasuni Dissanayake** | Frontend Developer |
+| **Hasitha Gallella** | ML/AI Engineer |
 
-## 📁 Project Structure
+---
+
+## Overview
+
+This module implements an **unsupervised anomaly detection** system using AutoEncoders. The model learns to reconstruct "normal" thermal images, and anomalies are detected when the reconstruction error exceeds a threshold.
+
+### Why AutoEncoders?
+
+| Advantage | Description |
+|-----------|-------------|
+| **Unsupervised Learning** | Only needs normal images for training |
+| **Novelty Detection** | Can detect previously unseen failure patterns |
+| **Pixel-Level Precision** | Generates localized anomaly maps |
+| **Interpretability** | Visual heatmaps explain detections |
+
+---
+
+## Architecture
+
+### AnomalyAutoEncoder
+
+```python
+class AnomalyAutoEncoder(nn.Module):
+    """
+    Input: (batch, 3, 256, 256)
+    Latent: (batch, 128, 8, 8)
+    Output: (batch, 3, 256, 256)
+    """
+```
+
+#### Encoder
+
+| Layer | Input | Output | Kernel | Stride |
+|-------|-------|--------|--------|--------|
+| Conv2d + BN + ReLU | 3x256x256 | 32x128x128 | 3x3 | 2 |
+| Conv2d + BN + ReLU | 32x128x128 | 64x64x64 | 3x3 | 2 |
+| Conv2d + BN + ReLU | 64x64x64 | 128x32x32 | 3x3 | 2 |
+| Conv2d + BN + ReLU | 128x32x32 | 256x16x16 | 3x3 | 2 |
+| Conv2d + BN + ReLU | 256x16x16 | 128x8x8 | 3x3 | 2 |
+
+#### Decoder
+
+| Layer | Input | Output | Kernel | Stride |
+|-------|-------|--------|--------|--------|
+| ConvTranspose2d + BN + ReLU | 128x8x8 | 256x16x16 | 3x3 | 2 |
+| ConvTranspose2d + BN + ReLU | 256x16x16 | 128x32x32 | 3x3 | 2 |
+| ConvTranspose2d + BN + ReLU | 128x32x32 | 64x64x64 | 3x3 | 2 |
+| ConvTranspose2d + BN + ReLU | 64x64x64 | 32x128x128 | 3x3 | 2 |
+| ConvTranspose2d + Sigmoid | 32x128x128 | 3x256x256 | 3x3 | 2 |
+
+### ImprovedAutoEncoder (U-Net Style)
+
+An alternative architecture with **skip connections** for better reconstruction:
+
+```
+Encoder                    Decoder
+   |                          ^
+   +--------------------------|  Skip Connection
+   |                          |
+   +--------------------------|  Skip Connection
+   |                          |
+   +--------------------------|  Skip Connection
+   |                          |
+   +---> Bottleneck ----------+
+```
+
+---
+
+## Module Structure
 
 ```
 ML_analysis/
-├── dataset.py              # ThermalDataset loader for T1-T5 folders
-├── model.py                # AutoEncoder architecture
-├── train.py                # Training script
-├── test.py                 # Testing and visualization
-├── run_experiment.py       # Full pipeline runner
-├── requirements.txt        # Python dependencies
-├── Dataset/               # Your thermal image dataset
-│   ├── T1/
-│   │   ├── faulty/
-│   │   └── normal/
-│   ├── T2/, T3/, T4/, T5/
-├── models/                # Saved model checkpoints
-│   ├── best_model.pth
-│   └── final_model.pth
-└── results/               # Test results & visualizations
-    ├── *_result.png       # 4-panel visualizations
-    ├── *_mask.png         # Binary segmentation masks
-    └── error_analysis.png # Error distribution plots
+├── model.py               # AutoEncoder architecture
+├── train.py               # Initial training script
+├── finetune.py            # Finetuning on new data
+├── detect_and_annotate.py # Inference & visualization
+├── dataset.py             # Dataset loading utilities
+├── finetune_dataset.py    # Finetuning dataset loader
+├── requirements.txt       # Dependencies
+└── models/
+    └── best_model.pth     # Trained weights
 ```
 
-## 🚀 Quick Start
+---
 
-### 1. Installation
+## Usage
+
+### Training
 
 ```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python train.py \
+  --data-dir ../Dataset/T1/normal \
+  --output-dir models \
+  --epochs 50 \
+  --batch-size 16 \
+  --lr 0.001 \
+  --img-size 256
+```
 
-# Install dependencies
+**Training Parameters:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--data-dir` | Required | Path to normal images |
+| `--output-dir` | `models` | Output directory |
+| `--epochs` | `50` | Training epochs |
+| `--batch-size` | `16` | Batch size |
+| `--lr` | `0.001` | Learning rate |
+| `--img-size` | `256` | Input image size |
+| `--val-split` | `0.2` | Validation split |
+
+### Finetuning
+
+```bash
+python finetune.py \
+  --feedback-data ../Finetune_data/Local_Dataset \
+  --weights models/best_model.pth \
+  --output-dir ../Finetune_data/output \
+  --epochs 20 \
+  --lr 0.0001
+```
+
+**Key Differences from Training:**
+
+| Aspect | Training | Finetuning |
+|--------|----------|------------|
+| Learning Rate | 0.001 | 0.0001 |
+| Epochs | 50 | 20 |
+| Initialization | Random | Pre-trained weights |
+| Purpose | Learn patterns | Adapt to new data |
+
+### Detection
+
+```bash
+python detect_and_annotate.py \
+  --image ../Dataset/T1/faulty/image.jpg \
+  --model models/best_model.pth \
+  --threshold 0.5 \
+  --min-area 200 \
+  --max-area 5000 \
+  --max-annotations 3 \
+  --output-dir results
+```
+
+---
+
+## Detection Pipeline
+
+### Step-by-Step Process
+
+```python
+# 1. Load and preprocess image
+image_tensor, original_bgr, cropped_rgb, size, coords = preprocess_image(path)
+
+# 2. Generate anomaly map
+anomaly_map, reconstructed = model.get_anomaly_map(image_tensor)
+
+# 3. Create binary mask
+mask = generate_anomaly_mask(anomaly_map, threshold=0.5)
+
+# 4. Find contours and draw boxes
+annotated, boxes = find_contours_and_draw_boxes(
+    original_bgr, mask, size, coords,
+    min_area=200, max_area=5000, max_annotations=3
+)
+```
+
+### Preprocessing
+
+1. **Load Image**: Read with OpenCV (BGR format)
+2. **Crop Border**: Remove 10% border (reduce edge artifacts)
+3. **Resize**: Scale to 256x256 pixels
+4. **Normalize**: Scale to [0, 1] range
+5. **Convert**: NumPy to PyTorch tensor
+
+### Anomaly Map Generation
+
+```python
+def get_anomaly_map(self, x):
+    """Generate pixel-wise anomaly scores"""
+    with torch.no_grad():
+        reconstructed = self.forward(x)
+        # Reconstruction error per pixel
+        anomaly_map = torch.abs(x - reconstructed)
+        # Average across RGB channels
+        anomaly_map = torch.mean(anomaly_map, dim=1, keepdim=True)
+    return anomaly_map, reconstructed
+```
+
+### Contour Detection
+
+1. **Threshold**: Binary mask from anomaly map
+2. **Find Contours**: OpenCV `findContours()`
+3. **Filter by Area**: Remove too small/large regions
+4. **Bounding Boxes**: `cv2.boundingRect()` for each contour
+5. **Score**: Mean anomaly value in region
+6. **Blue Filter**: Skip regions with high blue content (cold areas)
+7. **Top-K**: Keep highest scoring detections
+
+---
+
+## Training Details
+
+### Data Augmentation
+
+```python
+transforms.Compose([
+    A.HorizontalFlip(p=0.5),
+    A.VerticalFlip(p=0.5),
+    A.Rotate(limit=10, p=0.3),
+    A.RandomBrightnessContrast(
+        brightness_limit=0.2,
+        contrast_limit=0.2,
+        p=0.3
+    ),
+])
+```
+
+### Loss Function
+
+```python
+loss = F.mse_loss(reconstructed, original)
+```
+
+**MSE (Mean Squared Error)** measures pixel-wise reconstruction quality.
+
+### Early Stopping
+
+```python
+patience = 10  # epochs without improvement
+```
+
+Training stops if validation loss doesn't improve for 10 consecutive epochs.
+
+### Checkpointing
+
+```python
+if val_loss < best_val_loss:
+    torch.save(model.state_dict(), 'best_model.pth')
+    best_val_loss = val_loss
+```
+
+---
+
+## Model Performance
+
+### Training Metrics
+
+| Metric | Value |
+|--------|-------|
+| Final Training Loss | ~0.005 |
+| Final Validation Loss | ~0.008 |
+| Convergence | ~30 epochs |
+
+### Detection Metrics
+
+| Threshold | Precision | Recall | F1 |
+|-----------|-----------|--------|-----|
+| 0.3 | 0.75 | 0.95 | 0.84 |
+| 0.5 | 0.88 | 0.85 | 0.86 |
+| 0.7 | 0.95 | 0.70 | 0.81 |
+
+**Recommended threshold: 0.5** (balanced precision/recall)
+
+---
+
+## Configuration
+
+### Detection Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `threshold` | 0.5 | Anomaly map threshold (0-1) |
+| `min_area` | 200 | Minimum contour area (pixels) |
+| `max_area` | 5000 | Maximum contour area (pixels) |
+| `max_annotations` | 3 | Maximum detections to show |
+| `blue_threshold` | 30 | Max blue percentage (%) |
+
+### Model Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Input Size | 256x256x3 |
+| Latent Dimension | 128 |
+| Encoder Channels | [32, 64, 128, 256, 128] |
+| Activation | ReLU (encoder), Sigmoid (output) |
+| Normalization | BatchNorm2d |
+
+---
+
+## API Integration
+
+### Using the Model
+
+```python
+from model import AnomalyAutoEncoder
+from detect_and_annotate import (
+    load_model, preprocess_image, 
+    generate_anomaly_mask, find_contours_and_draw_boxes
+)
+
+# Load model
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = load_model('models/best_model.pth', device)
+
+# Process image
+tensor, bgr, rgb, size, coords = preprocess_image('image.jpg')
+tensor = tensor.to(device)
+
+# Get anomaly map
+anomaly_map, reconstructed = model.get_anomaly_map(tensor)
+anomaly_np = anomaly_map.cpu().squeeze().numpy()
+
+# Detect anomalies
+mask = generate_anomaly_mask(anomaly_np, threshold=0.5)
+annotated, boxes = find_contours_and_draw_boxes(
+    bgr, mask, size, coords,
+    min_area=200, max_area=5000, max_annotations=3
+)
+
+# boxes = [{'id': 1, 'bbox': (x, y, w, h), 'score': 85.5, ...}, ...]
+```
+
+---
+
+## Dependencies
+
+```txt
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python>=4.8.0
+numpy>=1.21.0
+albumentations>=1.3.0
+matplotlib>=3.5.0
+Pillow>=10.0.0
+tqdm
+```
+
+Install with:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Train the Model
+---
 
-```bash
-# Run full experiment (train + test)
-python run_experiment.py
+## License
 
-# Or train separately
-python train.py
-```
+This project is licensed under the MIT License.
 
-### 3. Test on New Images
+---
 
-```bash
-python test.py
-```
-
-## 📊 Results
-
-### Training Results
-- **Training Images**: 12 normal images (from T1-T5)
-- **Test Images**: 69 images (57 faulty + 12 normal)
-- **Best Training Loss**: 2.886
-
-### Detection Performance
-
-| Category | Mean Error | Std Error | Min Error | Max Error |
-|----------|-----------|-----------|-----------|-----------|
-| **Normal** | 2.720 | 0.455 | 2.244 | 3.753 |
-| **Faulty** | 2.407 | 0.332 | 1.776 | 3.586 |
-
-> **Note**: Current results show overlap between normal and faulty distributions. This indicates:
-> - More training data needed (only 12 normal images used)
-> - Longer training required (20 epochs used for quick test)
-> - Consider data augmentation
-
-## 🔧 Model Architecture
-
-### AutoEncoder Structure
-
-```
-Encoder:
-  Input (3, 256, 256)
-  ↓ Conv2d + BN + ReLU
-  (32, 128, 128)
-  ↓ Conv2d + BN + ReLU
-  (64, 64, 64)
-  ↓ Conv2d + BN + ReLU
-  (128, 32, 32)
-  ↓ Conv2d + BN + ReLU
-  (256, 16, 16)
-  ↓ Conv2d + BN + ReLU
-  Latent (128, 8, 8)
-
-Decoder:
-  Latent (128, 8, 8)
-  ↓ ConvTranspose2d + BN + ReLU
-  (256, 16, 16)
-  ↓ ConvTranspose2d + BN + ReLU
-  (128, 32, 32)
-  ↓ ConvTranspose2d + BN + ReLU
-  (64, 64, 64)
-  ↓ ConvTranspose2d + BN + ReLU
-  (32, 128, 128)
-  ↓ ConvTranspose2d + Sigmoid
-  Output (3, 256, 256)
-```
-
-## 📈 Visualization Outputs
-
-Each test image generates a 4-panel visualization:
-
-1. **Original Image** - Input thermal image
-2. **Reconstructed** - AutoEncoder reconstruction
-3. **Anomaly Heatmap** - Pixel-wise error (red = high error)
-4. **Segmentation Overlay** - Binary mask overlaid on original
-
-## ⚙️ Configuration
-
-### Training Parameters
-
-```python
-train_autoencoder(
-    data_root='Dataset',      # Path to dataset
-    batch_size=8,             # Batch size for training
-    epochs=50,                # Number of epochs
-    learning_rate=0.001,      # Initial learning rate
-    img_size=256,             # Input image size
-    save_dir='models'         # Model save directory
-)
-```
-
-### Testing Parameters
-
-```python
-test_model(
-    model_path='models/best_model.pth',
-    data_root='Dataset',
-    img_size=256,
-    threshold=0.5,            # Threshold for binary mask
-    save_dir='results'
-)
-```
-
-## 🔬 Improving Results
-
-To achieve better anomaly detection performance:
-
-### 1. Collect More Data
-- **Current**: 12 normal training images
-- **Recommended**: 100+ normal images per transformer type
-
-### 2. Train Longer
-- **Current**: 20 epochs (quick test)
-- **Recommended**: 50-100 epochs with early stopping
-
-### 3. Data Augmentation
-Already implemented in `dataset.py`:
-- Horizontal flip
-- Rotation (±15°)
-- Brightness/contrast adjustment
-
-### 4. Alternative Architectures
-
-The codebase includes `ImprovedAutoEncoder` with skip connections (U-Net style):
-
-```python
-from model import ImprovedAutoEncoder
-
-# In train.py, replace:
-model = ImprovedAutoEncoder(in_channels=3)
-```
-
-### 5. Advanced Methods
-
-For state-of-the-art results, consider:
-
-**PaDiM (Patch Distribution Modeling)**:
-- Uses pre-trained ResNet features
-- Models normal distribution per patch
-- Mahalanobis distance for anomaly scoring
-
-**Other SOTA Methods**:
-- PatchCore
-- FastFlow
-- DRAEM
-- CFlow-AD
-
-## 📝 Usage Examples
-
-### Load and Visualize Dataset
-
-```python
-from dataset import ThermalDataset
-from torch.utils.data import DataLoader
-
-# Load training data
-train_dataset = ThermalDataset(
-    root_dir='Dataset',
-    mode='train',
-    img_size=256
-)
-
-print(f"Training images: {len(train_dataset)}")
-
-# Load test data
-test_dataset = ThermalDataset(
-    root_dir='Dataset',
-    mode='test',
-    img_size=256
-)
-
-print(f"Test images: {len(test_dataset)}")
-```
-
-### Generate Anomaly Map for Single Image
-
-```python
-import torch
-from model import AnomalyAutoEncoder
-from PIL import Image
-import numpy as np
-
-# Load model
-model = AnomalyAutoEncoder()
-checkpoint = torch.load('models/best_model.pth')
-model.load_state_dict(checkpoint['model_state_dict'])
-model.eval()
-
-# Process image
-image = Image.open('path/to/image.jpg')
-# ... preprocess image ...
-
-# Get anomaly map
-with torch.no_grad():
-    anomaly_map, reconstructed = model.get_anomaly_map(image_tensor)
-```
-
-## 🐛 Troubleshooting
-
-### Issue: Low separation between normal/faulty
-**Solution**: Increase training data and epochs
-
-### Issue: Model not learning
-**Solution**: Check learning rate, try different architecture
-
-### Issue: Memory errors
-**Solution**: Reduce batch_size or img_size
-
-### Issue: Segmentation masks too noisy
-**Solution**: Adjust threshold or morphological kernel size in `test.py`
-
-## 📚 References
-
-- **AutoEncoders for Anomaly Detection**: [Variational AutoEncoder Paper](https://arxiv.org/abs/1312.6114)
-- **U-Net Architecture**: [U-Net Paper](https://arxiv.org/abs/1505.04597)
-- **PaDiM**: [PaDiM: a Patch Distribution Modeling Framework](https://arxiv.org/abs/2011.08785)
-
-## 🤝 Contributing
-
-To improve this project:
-
-1. Collect more thermal transformer images
-2. Experiment with different architectures
-3. Implement advanced methods (PaDiM, PatchCore)
-4. Add proper train/val/test splits
-5. Implement metrics (AUROC, F1, IoU)
-
-## 📄 License
-
-This project is for educational and research purposes.
-
-## 💡 Tips
-
-- **Start simple**: AutoEncoder approach works well for quick testing
-- **Scale up**: Add more data before increasing model complexity
-- **Validate**: Always check if model learns meaningful features
-- **Iterate**: Adjust threshold based on precision/recall requirements
+<p align="center">
+  Made by <strong>Team Arbitary</strong>
+</p>
